@@ -54,9 +54,7 @@ def test_org_mfa_settings(audit):
         "two_factor_requirement_enabled was set to true."
     ]
     ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes)
-
     org_settings = gatherEvidence.get_org_settings(audit)
-    print(org_settings.get("two_factor_requirement_enabled"))
     ctrl.result = org_settings.get("two_factor_requirement_enabled")
     return ctrl
 
@@ -74,8 +72,8 @@ def test_branch_protection_rules(audit):
         "An active ruleset OR branch protection rule is in enforced on the repository.",
         "Pull requests merging into the 'main' branch require at least one approval."
     ]
-    table_headers = ["Sample Number", "Repository Name", "Conclusion", "Comments"]
-    ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes, table_headers = table_headers, include_sample_number = True)
+    table_headers = ["Repository Name", "Conclusion", "Comments"]
+    ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes, table_headers = table_headers)
 
     # Get list of all repositories.
     repos = gatherEvidence.get_repos(audit)

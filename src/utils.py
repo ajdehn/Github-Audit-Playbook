@@ -2,10 +2,10 @@ import json
 import os
 import shutil
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, LETTER
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, ListFlowable, ListItem
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, ListFlowable, ListItem, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 def confirmDeleteFolder(folder_path):
@@ -97,98 +97,217 @@ def callGithubApi(audit, save_file_path, github_url, params=None, paginate=False
         saveJson(json_data, save_file_path)
         return json_data
 
+"""
+    Render 2-column control summary table.
+"""
+def render_control_summary(control, page_width, label_style, value_style, list_style, center_style):
+    test_procedures = [
+        Paragraph(f"{i+1}. {item}", list_style)
+        for i, item in enumerate(control.test_procedures)
+    ]
+    test_attributes = [
+        Paragraph(f"• {item}", list_style)
+        for item in control.test_attributes
+    ]
 
+    # Conclusion
+    conclusion = Paragraph(
+        f"<font color='{ 'green' if control.result else 'red' }'><b>{'Pass' if control.result else 'Fail'}</b></font>",
+        value_style
+    )
+
+    # Build summary table
+    table_data = [ 
+        [Paragraph("Control ID", label_style), Paragraph(control.ctrl_id, value_style)], 
+        [Paragraph("Control Description", label_style), Paragraph(control.ctrl_desc, value_style)], 
+        [Paragraph("Conclusion", label_style), conclusion], 
+        [Paragraph("Test Procedures", label_style), test_procedures], 
+        [Paragraph("Test Attributes", label_style), test_attributes],
+    ]
+
+    table_width = page_width - 2 * 72
+    table = Table(table_data, colWidths=[table_width * 0.25, table_width * 0.75])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.black),
+        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.grey),
+        ("PADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    return table
+
+"""
+    Render sample results table (if present).
+"""
+def render_sample_table(control, page_width, label_style, value_style, center_style):
+    if not control.table_headers:
+        return None
+
+    table_data = []
+    # Header row
+    table_data.append([
+        Paragraph(h, label_style) for h in control.table_headers
+    ])
+    for i, sample in enumerate(control.samples, 1):
+        row = []
+        if control.include_sample_number:
+            row.append(Paragraph(str(i), center_style))
+        row.extend([
+            Paragraph(str(v), value_style)
+            for v in sample.sample_id.values()
+        ])
+
+        # Result
+        result_text = "Pass" if sample.result else "Fail"
+        result_color = "green" if sample.result else "red"
+        row.append(Paragraph(f"<font color='{result_color}'>{result_text}</font>", center_style))
+
+        if not sample.result:
+            # Fail control if one sample fails
+            # TODO: Consider if this is necessary. I thought this would be completed in controlTesting.py
+            control.result = False
+            row.append(Paragraph(str(sample.comments), value_style))
+
+        table_data.append(row)
+
+    table_width = page_width - 2 * 72
+    col_width = table_width / len(table_data[0]) # divide evenly across columns
+    col_widths = [col_width] * len(table_data[0])
+    table = Table(table_data, colWidths=col_widths)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+
+    return table
+
+def render_summary_page(controls, styles):
+    """Build summary page with pass/fail counts."""
+    total = len(controls)
+    passed = sum(1 for c in controls if c.result)
+    failed = total - passed
+
+    elements = []
+
+    elements.append(Paragraph("Audit Summary", styles["Heading1"]))
+    elements.append(Spacer(1, 12))
+
+    summary_data = [
+        ["Total Controls", str(total)],
+        ["Passed", str(passed)],
+        ["Failed", str(failed)],
+    ]
+
+    table = Table(summary_data, colWidths=[200, 100])
+
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+        ("PADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 24))
+
+    return elements
+
+def make_cell(text, style, color=None, align=None):
+    """
+    Helper to create consistently styled table cells.
+    """
+    if color:
+        style = ParagraphStyle(
+            name=f"{style.name}_colored",
+            parent=style,
+            textColor=color
+        )
+    if align is not None:
+        style = ParagraphStyle(
+            name=f"{style.name}_aligned",
+            parent=style,
+            alignment=align
+        )
+    return Paragraph(str(text), style)
+
+def build_numbered_list(items, style):
+    flowables = []
+    for i, item in enumerate(items, 1):
+        flowables.append(Paragraph(f"{i}. {item}", style))
+    return flowables
+
+def build_bullet_list(items, style):
+    flowables = []
+    for item in items:
+        flowables.append(Paragraph(f"• {item}", style))
+    return flowables
+
+
+"""
+Build audit report summarizing findings.
+
+Structure:
+    1. Header
+    2. Summary Page
+    3. Detailed Findings
+        - Control Summary
+        - Sample Findings
+        - TODO: Exclusions (Option to select summary or detail version)
+"""
 def generate_pdf_report(audit, controls, filename="github_audit_report.pdf"):
     doc = SimpleDocTemplate(filename, pagesize=letter,
     title="Github Audit Report", author="AJ Dehn", subject="Summarizes audit findings from Github")
     styles = getSampleStyleSheet()
-    page_width, page_height = LETTER 
-
+    page_width, _ = LETTER
     elements = []
 
-    # Add Report Title
+    # Styles
+    label_style = ParagraphStyle(name="Label", fontSize=9, fontName="Helvetica-Bold")
+    value_style = ParagraphStyle(name="Value", fontSize=9, fontName="Helvetica")
+    list_style = ParagraphStyle(name="List", parent=value_style)
+    center_style = ParagraphStyle(name="Center", parent=value_style, alignment=1)
+
+    # ---------------------------
+    # Header
+    # ---------------------------
     elements.append(Paragraph("Github Audit Report", styles["Title"]))
     elements.append(Spacer(1, 12))
+    elements.append(
+        Paragraph(
+            f"<b>Date:</b> {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
+            styles["Normal"]
+        )
+    )
+    elements.append(Spacer(1, 12))
 
-    # Add controls to the report
+    # Summary Page
+    elements.extend(render_summary_page(controls, styles))
+    elements.append(PageBreak())
+
+    # Detailed Findings
     for control in controls:
-        # Populate Control Description, Conclusion, Test Procedures, and Test Attributes
-        elements.append(Paragraph(f"<b>Control Description:</b> {control.ctrl_desc}", styles["Normal"]))
-        elements.append(Spacer(1, 6))
+        elements.append(
+            render_control_summary(
+                control, page_width, label_style, value_style, list_style, center_style
+            )
+        )
+        elements.append(Spacer(1, 16))
 
-        elements.append(Paragraph(f"<b>Conclusion:</b> {"Pass" if control.result else "Fail"}", styles["Normal"]))
-        elements.append(Spacer(1, 6))
+        sample_table = render_sample_table(
+            control, page_width, label_style, value_style, center_style
+        )
 
-        # Add test procedures (ordered list) to the report
-        elements.append(Paragraph(f"<b>Test Procedures:</b>", styles["Normal"]))
-        test_procedure_flowable_items = []
-        for item in control.test_procedures:
-            test_procedure_flowable_items.append(ListItem(Paragraph(item, styles["Normal"])))
-        elements.append(ListFlowable(test_procedure_flowable_items, bulletType='1', start='1'))
-        elements.append(Spacer(1, 12))
-
-        # Add test attributes (unordered list) to the report
-        elements.append(Paragraph(f"<b>Test Attributes:</b>", styles["Normal"]))
-        test_attribute_flowable_items = []
-        for item in control.test_attributes:
-            test_attribute_flowable_items.append(ListItem(Paragraph(item, styles["Normal"])))
-        elements.append(ListFlowable(test_attribute_flowable_items, bulletType='bullet'))
-        elements.append(Spacer(1, 12))
-
-        if control.table_headers:
-            # Build audit results table
-            table_data = []
-            table_header_style = ParagraphStyle(name='TableHeader', fontSize=9, leading=11, alignment=1, spaceAfter=0)
-            table_cell_style = ParagraphStyle(name='TableCell', fontSize=8, leading=10)
-            
-            headers_wrapped = [Paragraph(h, table_header_style) for h in control.table_headers]
-            table_data.append(headers_wrapped)
-            # Populate rows into audit results table
-            sample_number = 1 # Only used if include_sample_number is True
-            for sample in control.samples:
-                wrapped_row = []
-                if control.include_sample_number:
-                    wrapped_row.append(sample_number)            
-                for item in sample.sample_id:
-                    wrapped_row.append(Paragraph(str(sample.sample_id.get(item)), table_cell_style))
-                
-                if sample.result:
-                    wrapped_row.append("Pass")
-                else:
-                    control.result = False
-                    fail_text = "Fail"
-                    # Highlight text when change fails.     
-                    wrapped_row.append(Paragraph(f'<font color="red">{fail_text}</font>', styles["Normal"]))
-                    # Add comments when sample fails
-                    wrapped_row.append(Paragraph(str(sample.comments), table_cell_style))
-                table_data.append(wrapped_row)
-                sample_number = sample_number + 1
-
-            # Make table width = page width minus margins
-            table_width = page_width - 2 * 72  # assuming 1-inch margins
-            col_width = table_width / len(table_data[0])  # divide evenly across columns
-            col_widths = [col_width] * len(table_data[0])
-            # Create table
-            table = Table(table_data, colWidths=col_widths)
-            table.hAlign = "LEFT"
-            # Style the table
-            style = TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
-                ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),        
-            ])
-            table.setStyle(style)
-            elements.append(table)
-            # Add space after the table.
+        if sample_table:
+            elements.append(sample_table)
             elements.append(Spacer(1, 20))
+        # Create new page for each control
+        elements.append(PageBreak())
 
-    # Build PDF
     doc.build(elements)
     print(f"Report generated: {filename}")
+
 
 def parse_dt(dt_str):
     if not dt_str:
