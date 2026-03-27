@@ -8,7 +8,7 @@ class Audit:
     """
     Contains audit metadata.
     """
-    def __init__(self, org_name, start_date, end_date, sample_size, gh_token, evidence_folder="audit_evidence"):
+    def __init__(self, org_name, start_date, end_date, sample_size, gh_token, evidence_folder="tmp/audit_evidence"):
         """
         Initializes the audit instance with the provided four attributes.
         """
@@ -25,14 +25,13 @@ if __name__ == "__main__":
     audit = Audit(os.getenv("org_name"), os.getenv("start_date"), os.getenv("end_date"), 
     int(os.getenv("samples_per_repo")), os.getenv("github_token"))
 
+    print("Running the Github Audit Playbook (maintained by AJ Dehn - AuditOps.io)")
     controls = []
 
     # Test branch protection rules
-    control_results = controlTesting.test_branch_protection_rules(audit)
-    print(control_results)
-    controls.append(control_results)
+    controls.append(controlTesting.test_branch_protection_rules(audit))
 
     # Test change approvals
     controls.append(controlTesting.test_change_approvals(audit))
 
-    generate_pdf_report(audit, controls, "github_audit_report.pdf")
+    generate_pdf_report(audit, controls, "tmp/github_audit_report.pdf")
