@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import controlTesting
 import random
 import os
-from utils import generate_pdf_report
+from utils import generate_pdf_report, confirmDeleteFolder
 
 class Audit:
     """
@@ -28,10 +28,9 @@ if __name__ == "__main__":
     print("Running the Github Audit Playbook (maintained by AJ Dehn - AuditOps.io)")
     controls = []
 
-    # Test branch protection rules
+    confirmDeleteFolder(audit.evidence_folder)
+    controls.append(controlTesting.test_org_mfa_settings(audit))
     controls.append(controlTesting.test_branch_protection_rules(audit))
-
-    # Test change approvals
     controls.append(controlTesting.test_change_approvals(audit))
 
     generate_pdf_report(audit, controls, "tmp/github_audit_report.pdf")

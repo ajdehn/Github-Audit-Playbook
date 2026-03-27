@@ -15,6 +15,11 @@ def get_repos(audit):
     # Paginate because orgs with many repos may exceed one page
     return callGithubApi(audit, save_file_path, url, paginate=True)
 
+def get_org_settings(audit):
+    save_file_path = os.path.join(audit.evidence_folder, "org_settings.json")
+    url = f"https://api.github.com/orgs/{audit.org_name}"
+    return callGithubApi(audit, save_file_path, url)
+
 """
 Returns a list of MERGED pull requests for a specific repository within the date range.
 Args:
