@@ -73,7 +73,7 @@ def test_branch_protection_rules(audit):
         "Pull requests merging into the 'main' branch require at least one approval."
     ]
     table_headers = ["Sample Number", "Repository Name", "Conclusion", "Comments"]
-    ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes, table_headers = table_headers, include_sample_number = True)
+    ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes, table_headers = table_headers)
 
     # Get list of all repositories.
     repos = gatherEvidence.get_repos(audit)
