@@ -1,0 +1,42 @@
+[
+    {
+        "id": 4002503200,
+        "node_id": "PRR_kwDOJQM0ys7ukVog",
+        "user": {
+            "login": "ajdehn",
+            "id": 11763672,
+            "node_id": "MDQ6VXNlcjExNzYzNjcy",
+            "avatar_url": "https://avatars.githubusercontent.com/u/11763672?u=074dbc4a4a4dabfa45b054ee715149da33531003&v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/ajdehn",
+            "html_url": "https://github.com/ajdehn",
+            "followers_url": "https://api.github.com/users/ajdehn/followers",
+            "following_url": "https://api.github.com/users/ajdehn/following{/other_user}",
+            "gists_url": "https://api.github.com/users/ajdehn/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/ajdehn/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/ajdehn/subscriptions",
+            "organizations_url": "https://api.github.com/users/ajdehn/orgs",
+            "repos_url": "https://api.github.com/users/ajdehn/repos",
+            "events_url": "https://api.github.com/users/ajdehn/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/ajdehn/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+        },
+        "body": "Much better, approved.",
+        "state": "APPROVED",
+        "html_url": "https://github.com/AuditOps/training/pull/3#pullrequestreview-4002503200",
+        "pull_request_url": "https://api.github.com/repos/AuditOps/training/pulls/3",
+        "author_association": "MEMBER",
+        "_links": {
+            "html": {
+                "href": "https://github.com/AuditOps/training/pull/3#pullrequestreview-4002503200"
+            },
+            "pull_request": {
+                "href": "https://api.github.com/repos/AuditOps/training/pulls/3"
+            }
+        },
+        "submitted_at": "2026-03-24T21:49:09Z",
+        "commit_id": "cd86079b98b60b1017bf9c5f4a26714b098c29d9"
+    }
+]
