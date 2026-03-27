@@ -85,9 +85,8 @@ def callGithubApi(audit, save_file_path, github_url, params=None, paginate=False
         return json_data
 
 
-def generate_pdf_report(audit, controls, filename="pr_audit_report.pdf"):
-
-    doc = SimpleDocTemplate(f"{audit.evidence_folder}/{filename}", pagesize=letter,
+def generate_pdf_report(audit, controls, filename="github_audit_report.pdf"):
+    doc = SimpleDocTemplate(filename, pagesize=letter,
     title="Github Audit Report", author="AJ Dehn", subject="Summarizes audit findings from Github")
     styles = getSampleStyleSheet()
     page_width, page_height = LETTER 

@@ -95,7 +95,6 @@ def test_change_approvals(audit):
     repos = gatherEvidence.get_repos(audit)
     # Gather evidence from each individual repo.
     for repo in repos:
-        print(f"\nRepo: {repo["name"]}")
         all_prs = gatherEvidence.get_prs(audit, repo["name"])
         total_prs = len(all_prs["items"])
         num_samples = min(audit.sample_size, total_prs) # Choose the lesser of len(prs) or audit.sample_size
@@ -103,7 +102,6 @@ def test_change_approvals(audit):
         all_pr_numbers = [pr["number"] for pr in all_prs["items"]]
         # Randomly select PRs for sampling. Sort to make final report cleaner.
         prs_to_sample = sorted(random.sample(all_pr_numbers, k=num_samples))
-        print(f"Auditing {num_samples} of {total_prs} PRs. Selected PRs: {prs_to_sample}")
         # Save relevant evidence for each selected PR.
         pr_lookup = {pr["number"]: pr for pr in all_prs["items"]}
         for pr_number in prs_to_sample:
