@@ -2,7 +2,7 @@ import json
 import os
 import shutil
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, LETTER
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, ListFlowable, ListItem
@@ -110,12 +110,14 @@ def generate_pdf_report(audit, controls, filename="github_audit_report.pdf"):
     elements.append(Paragraph("Github Audit Report", styles["Title"]))
     elements.append(Spacer(1, 12))
 
+    elements.append(Paragraph(f"<b>Date:</b> {datetime.now(timezone.utc).strftime("%Y-%m-%d")}", styles["Normal"]))
+    elements.append(Spacer(1, 6))
+
     # Add controls to the report
     for control in controls:
         # Populate Control Description, Conclusion, Test Procedures, and Test Attributes
         elements.append(Paragraph(f"<b>Control Description:</b> {control.ctrl_desc}", styles["Normal"]))
         elements.append(Spacer(1, 6))
-
         elements.append(Paragraph(f"<b>Conclusion:</b> {"Pass" if control.result else "Fail"}", styles["Normal"]))
         elements.append(Spacer(1, 6))
 
@@ -158,7 +160,7 @@ def generate_pdf_report(audit, controls, filename="github_audit_report.pdf"):
                     control.result = False
                     fail_text = "Fail"
                     # Highlight text when change fails.     
-                    wrapped_row.append(Paragraph(f'<font color="red">{fail_text}</font>', styles["Normal"]))
+                    wrapped_row.append(Paragraph(f'<font color="red">{fail_text}</font>'))
                     # Add comments when sample fails
                     wrapped_row.append(Paragraph(str(sample.comments), table_cell_style))
                 table_data.append(wrapped_row)

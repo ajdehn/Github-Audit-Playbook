@@ -54,9 +54,7 @@ def test_org_mfa_settings(audit):
         "two_factor_requirement_enabled was set to true."
     ]
     ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes)
-
     org_settings = gatherEvidence.get_org_settings(audit)
-    print(org_settings.get("two_factor_requirement_enabled"))
     ctrl.result = org_settings.get("two_factor_requirement_enabled")
     return ctrl
 
