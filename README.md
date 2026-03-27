@@ -20,9 +20,12 @@ This playbook was written by [AJ Dehn](https://www.linkedin.com/in/ajdehn/) foun
    * Expiration: Decide how often you rotate the key based on your company policy. A good starting point is between 90 - 365 days.
 5. Repository Access: I recommend selecting "All repositories". If you can't get those permissions, discuss with your engineering contacts to agree on which repos are in scope.
 6. Add the following permissions:
-    * Metadata (Read-only)
-    * Administration (Read-only)
-    * Pull requests (Read-only)
+    * Repository Permissions:
+      * Metadata (Read-only)
+      * Administration (Read-only)
+      * Pull requests (Read-only)
+    * Organizations Permissions:
+      * Administration (Read-only)
 7. Create and populate the .env file.
 ```
 org_name = "COMPANY_NAME"
