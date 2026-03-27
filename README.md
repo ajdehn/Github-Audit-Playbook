@@ -31,4 +31,4 @@ start_date = "YYYY-MM-DD"
 end_date = "YYYY-MM-DD"
 samples_per_repo = 5 # Update for your organization.
 ```
-8. Run scan.
+8. Run the scan, `python src/runAudit.py`
