@@ -4,18 +4,18 @@
         "name": "main_ruleset",
         "target": "branch",
         "source_type": "Repository",
-        "source": "AuditOps/training-ruleset-bypass",
+        "source": "itauditguy-training/ruleset-bypass",
         "enforcement": "active",
         "node_id": "RRS_lACqUmVwb3NpdG9yec5HHG_4zgDbjcI",
         "_links": {
             "self": {
-                "href": "https://api.github.com/repos/AuditOps/training-ruleset-bypass/rulesets/14388674"
+                "href": "https://api.github.com/repos/itauditguy-training/ruleset-bypass/rulesets/14388674"
             },
             "html": {
-                "href": "https://github.com/AuditOps/training-ruleset-bypass/rules/14388674"
+                "href": "https://github.com/itauditguy-training/ruleset-bypass/rules/14388674"
             }
         },
         "created_at": "2026-03-26T15:34:20.408-05:00",
-        "updated_at": "2026-03-26T15:34:20.442-05:00"
+        "updated_at": "2026-03-27T10:01:25.915-05:00"
     }
 ]
