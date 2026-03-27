@@ -10,7 +10,7 @@ This playbook was written by [AJ Dehn](https://www.linkedin.com/in/ajdehn/) foun
 * Risk Mitigation: Performing in-depth audits protects your organization from real risk (lack of MFA, aged credentials, etc).
 
 ## Setup Instructions
-1. Pre-requisites: Git and python must already be installed.
+1. Pre-requisites: Git and Python must already be installed.
 2. Clone github repository.
 3. Create a Fine Grained Person Access token in Github [LINK](https://github.com/settings/personal-access-tokens/new).
 4. Token Setup Instructions:
