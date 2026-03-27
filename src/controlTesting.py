@@ -72,7 +72,7 @@ def test_branch_protection_rules(audit):
         "An active ruleset OR branch protection rule is in enforced on the repository.",
         "Pull requests merging into the 'main' branch require at least one approval."
     ]
-    table_headers = ["Sample Number", "Repository Name", "Conclusion", "Comments"]
+    table_headers = ["Repository Name", "Conclusion", "Comments"]
     ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes, table_headers = table_headers)
 
     # Get list of all repositories.
