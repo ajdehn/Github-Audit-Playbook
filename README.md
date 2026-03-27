@@ -1,7 +1,15 @@
-# About
+## About
 This playbook was written by [AJ Dehn](https://www.linkedin.com/in/ajdehn/) founder of [AuditOps.io](https://www.auditops.io/). The goal of this project is to help auditors conduct **Github audits, without screenshots**.
 
-# Setup Instructions
+## Benefits for Auditors:
+* High quality, automated evidence collection generated directly from the Github API.
+* Elimates the needs for sampling PR's. Samples can be made automatically using Python's [random](https://docs.python.org/3/library/random.html) library.
+
+## Benefits for Clients:
+* Time Savings: No more time wasted gathering screenshots of Github.
+* Risk Mitigation: Performing in-depth audits protects your organization from real risk (lack of MFA, aged credentials, etc).
+
+## Setup Instructions
 1. Pre-requisites: You must have installed git and python installed.
 2. Clone github repository.
 3. Create a Fine Grained Person Access token in Github [LINK](https://github.com/settings/personal-access-tokens/new).
