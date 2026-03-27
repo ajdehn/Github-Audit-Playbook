@@ -25,15 +25,15 @@
         },
         "body": "Retroactively approving this change.",
         "state": "COMMENTED",
-        "html_url": "https://github.com/AuditOps/training/pull/4#pullrequestreview-4010284707",
-        "pull_request_url": "https://api.github.com/repos/AuditOps/training/pulls/4",
-        "author_association": "MEMBER",
+        "html_url": "https://github.com/itauditguy-training/training/pull/4#pullrequestreview-4010284707",
+        "pull_request_url": "https://api.github.com/repos/itauditguy-training/training/pulls/4",
+        "author_association": "COLLABORATOR",
         "_links": {
             "html": {
-                "href": "https://github.com/AuditOps/training/pull/4#pullrequestreview-4010284707"
+                "href": "https://github.com/itauditguy-training/training/pull/4#pullrequestreview-4010284707"
             },
             "pull_request": {
-                "href": "https://api.github.com/repos/AuditOps/training/pulls/4"
+                "href": "https://api.github.com/repos/itauditguy-training/training/pulls/4"
             }
         },
         "submitted_at": "2026-03-25T22:28:32Z",

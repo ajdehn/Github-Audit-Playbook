@@ -25,15 +25,15 @@
         },
         "body": "Much better, approved.",
         "state": "APPROVED",
-        "html_url": "https://github.com/AuditOps/training/pull/3#pullrequestreview-4002503200",
-        "pull_request_url": "https://api.github.com/repos/AuditOps/training/pulls/3",
+        "html_url": "https://github.com/itauditguy-training/training/pull/3#pullrequestreview-4002503200",
+        "pull_request_url": "https://api.github.com/repos/itauditguy-training/training/pulls/3",
         "author_association": "MEMBER",
         "_links": {
             "html": {
-                "href": "https://github.com/AuditOps/training/pull/3#pullrequestreview-4002503200"
+                "href": "https://github.com/itauditguy-training/training/pull/3#pullrequestreview-4002503200"
             },
             "pull_request": {
-                "href": "https://api.github.com/repos/AuditOps/training/pulls/3"
+                "href": "https://api.github.com/repos/itauditguy-training/training/pulls/3"
             }
         },
         "submitted_at": "2026-03-24T21:49:09Z",
