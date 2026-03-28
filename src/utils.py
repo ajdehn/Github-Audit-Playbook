@@ -118,8 +118,8 @@ def render_control_summary(control, page_width, label_style, value_style, list_s
 
     # Build summary table
     table_data = [ 
-        [Paragraph("Control ID", label_style), Paragraph(control.ctrl_id, value_style)], 
-        [Paragraph("Control Description", label_style), Paragraph(control.ctrl_desc, value_style)], 
+        [Paragraph("Control ID", label_style), Paragraph(control.control_id, value_style)], 
+        [Paragraph("Control Description", label_style), Paragraph(control.control_description, value_style)], 
         [Paragraph("Conclusion", label_style), conclusion], 
         [Paragraph("Test Procedures", label_style), test_procedures], 
         [Paragraph("Test Attributes", label_style), test_attributes],

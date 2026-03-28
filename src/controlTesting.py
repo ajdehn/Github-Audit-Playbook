@@ -4,9 +4,9 @@ from utils import parse_dt
 from datetime import datetime
 
 class Control:
-    def __init__(self, ctrl_id, ctrl_desc, test_procedures, test_attributes, table_headers=None, include_sample_number=False):
-        self.ctrl_id = ctrl_id
-        self.ctrl_desc = ctrl_desc
+    def __init__(self, control_id, control_description, test_procedures, test_attributes, table_headers=None, include_sample_number=False):
+        self.control_id = control_id
+        self.control_description = control_description
         self.test_procedures = test_procedures
         self.test_attributes = test_attributes
         self.table_headers = table_headers # NOTE: If test attributes aren't included, no table is required
@@ -18,8 +18,8 @@ class Control:
 
     def __str__(self):
         return (
-                f"ctrl_id: {self.ctrl_id}\n"
-                f"ctrl_desc: {self.ctrl_desc}\n"
+                f"control_id: {self.control_id}\n"
+                f"control_description: {self.control_description}\n"
                 f"result: {'Pass' if self.result else 'Fail'}\n"
                 f"include_sample_number: {self.include_sample_number}\n"
                 f"test_attributes: {self.test_attributes}"
@@ -28,9 +28,9 @@ class Control:
     NOTE: Sample class will be used even when performing 100% testing (Ex. Branch Protection Rules).
 """
 class Sample:
-    def __init__(self, sample_id, ctrl_id, test_attributes=None):
+    def __init__(self, sample_id, control_id, test_attributes=None):
         self.sample_id = sample_id
-        self.ctrl_id = ctrl_id
+        self.control_id = control_id
         self.result = False # NOTE: Set as 'False' by default. Will only change to 'True' after evaluation.
         self.comments = ""
     
@@ -45,23 +45,23 @@ class Exclusion:
         self.expiration_date = expiration_date
 
 def test_org_mfa_settings(audit):
-    ctrl_id = "IAM2"
-    ctrl_desc = "Github organization settings require MFA to be enabled."
+    control_id = "IAM2"
+    control_description = "Github organization settings require MFA to be enabled."
     test_procedures = [
         "Internal Audit (IA) obtained and inspected the org-wide MFA settings."
     ]
     test_attributes = [
         "two_factor_requirement_enabled was set to true."
     ]
-    ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes)
+    ctrl = Control(control_id, control_description, test_procedures, test_attributes)
     org_settings = gatherEvidence.get_org_settings(audit)
     ctrl.result = org_settings.get("two_factor_requirement_enabled")
     return ctrl
 
 # Run test and build report for change approvals.
 def test_branch_protection_rules(audit):
-    ctrl_id = "CM1"
-    ctrl_desc = "Code repositories have branch protection rules enabled."
+    control_id = "C1000"
+    control_description = "Code repositories have branch protection rules enabled."
     test_procedures = [
         "Internal Audit (IA) obtained and inspected a list of all repositories in the Github organization.",
         "IA worked with the engineering team to determine which repositories were in-scope for the audit.",
@@ -73,7 +73,7 @@ def test_branch_protection_rules(audit):
         "Pull requests merging into the 'main' branch require at least one approval."
     ]
     table_headers = ["Repository Name", "Conclusion", "Comments"]
-    ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes, table_headers = table_headers)
+    ctrl = Control(control_id, control_description, test_procedures, test_attributes, table_headers = table_headers)
 
     # Get list of all repositories.
     repos = gatherEvidence.get_repos(audit)
@@ -82,7 +82,7 @@ def test_branch_protection_rules(audit):
     for repo in repos:
         branch_protection_rules = gatherEvidence.get_branch_protection(audit, repo["name"])
         rulesets = gatherEvidence.get_repo_rulesets(audit, repo["name"])
-        sample = evaluate_branch_protection_rules(branch_protection_rules, rulesets, repo["name"], ctrl_id)
+        sample = evaluate_branch_protection_rules(branch_protection_rules, rulesets, repo["name"], control_id)
         ctrl.samples.append(sample)
     # Document final control decision.
     ctrl.result = all(s.result for s in ctrl.samples)
@@ -91,8 +91,8 @@ def test_branch_protection_rules(audit):
 
 # Run test and build report for change approvals.
 def test_change_approvals(audit):
-    ctrl_id = "CM2"
-    ctrl_desc = "Code changes are approved by a separate user before they are deployed to production."
+    control_id = "CM2"
+    control_description = "Code changes are approved by a separate user before they are deployed to production."
     test_procedures = [
         "Internal Audit (IA) obtained and inspected a list of all repositories in the Github organization.",
         "IA worked with the engineering team to determine which repositories were in-scope for the audit.",
@@ -104,7 +104,7 @@ def test_change_approvals(audit):
         "The PR was opened and approved by separate users."
     ]
     table_headers = ["Sample Number", "Repository Name", "PR Number", "Conclusion", "Comments"]
-    ctrl = Control(ctrl_id, ctrl_desc, test_procedures, test_attributes, table_headers = table_headers, include_sample_number = True)
+    ctrl = Control(control_id, control_description, test_procedures, test_attributes, table_headers = table_headers, include_sample_number = True)
     # Get list of all repos. 
     repos = gatherEvidence.get_repos(audit)
     # Gather evidence from each individual repo.
@@ -120,20 +120,20 @@ def test_change_approvals(audit):
         pr_lookup = {pr["number"]: pr for pr in all_prs["items"]}
         for pr_number in prs_to_sample:
             pr = pr_lookup[pr_number]
-            sample = evaluate_pr_approval(audit, pr, ctrl_id)
+            sample = evaluate_pr_approval(audit, pr, control_id)
             ctrl.samples.append(sample)
     # Document final control decision.
     ctrl.result = all(s.result for s in ctrl.samples)
     return ctrl
 
 
-def evaluate_pr_approval(audit, pr, ctrl_id):
+def evaluate_pr_approval(audit, pr, control_id):
     sample = Sample(
         sample_id={
             "repo_name": pr["repository_url"].split("/")[-1],
             "pr_number": pr["number"]
         },
-        ctrl_id=ctrl_id
+        control_id=control_id
     )
 
     merged_at = parse_dt(pr["pull_request"]["merged_at"])
@@ -179,10 +179,10 @@ def evaluate_pr_approval(audit, pr, ctrl_id):
     return sample
 
 
-def evaluate_branch_protection_rules(branch_protection, rulesets, repo_name, ctrl_id):
+def evaluate_branch_protection_rules(branch_protection, rulesets, repo_name, control_id):
     sample = Sample(
         sample_id={"repo_name": repo_name},
-        ctrl_id=ctrl_id
+        control_id=control_id
     )
 
     has_any_protection = False
