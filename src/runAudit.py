@@ -6,18 +6,16 @@ from utils import generate_pdf_report, confirmDeleteFolder
 
 class Audit:
     """
-    Contains audit metadata.
+    Initializes the audit instance with the provided attributes.
     """
     def __init__(self, org_name, start_date, end_date, sample_size, gh_token, evidence_folder="tmp/audit_evidence"):
-        """
-        Initializes the audit instance with the provided four attributes.
-        """
         self.gh_token = gh_token                # Authentication token to analyze the Github environment.
         self.org_name = org_name                # Github organization name (Ex. AuditOps)
         self.start_date = start_date            # Start date of the audit period (YYYY-MM-DD)
         self.end_date = end_date                # Final date of the audit period (YYYY-MM-DD)
         self.sample_size = sample_size          # Maxiumum number of samples per repo (Ex. 5)
         self.evidence_folder = evidence_folder  # Name of the evidence_folder
+        self.exclusions = None                  # Control and sample exclusions
 
 if __name__ == "__main__":
     # Load variables from .env file
@@ -29,8 +27,8 @@ if __name__ == "__main__":
     controls = []
 
     confirmDeleteFolder(audit.evidence_folder)
-    controls.append(controlTesting.test_org_mfa_settings(audit))
-    controls.append(controlTesting.test_branch_protection_rules(audit))
-    controls.append(controlTesting.test_change_approvals(audit))
+    controls.append(controlTesting.test_org_mfa_settings(audit, "C1000"))
+    controls.append(controlTesting.test_branch_protection_rules(audit, "C2000"))
+    controls.append(controlTesting.test_change_approvals(audit, "C2010"))
 
     generate_pdf_report(audit, controls, "tmp/github_audit_report.pdf")

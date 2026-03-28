@@ -44,8 +44,7 @@ class Exclusion:
         self.rationale = rationale
         self.expiration_date = expiration_date
 
-def test_org_mfa_settings(audit):
-    control_id = "IAM2"
+def test_org_mfa_settings(audit, control_id):
     control_description = "Github organization settings require MFA to be enabled."
     test_procedures = [
         "Internal Audit (IA) obtained and inspected the org-wide MFA settings."
@@ -59,8 +58,7 @@ def test_org_mfa_settings(audit):
     return ctrl
 
 # Run test and build report for change approvals.
-def test_branch_protection_rules(audit):
-    control_id = "C1000"
+def test_branch_protection_rules(audit, control_id):
     control_description = "Code repositories have branch protection rules enabled."
     test_procedures = [
         "Internal Audit (IA) obtained and inspected a list of all repositories in the Github organization.",
@@ -90,8 +88,7 @@ def test_branch_protection_rules(audit):
 
 
 # Run test and build report for change approvals.
-def test_change_approvals(audit):
-    control_id = "CM2"
+def test_change_approvals(audit, control_id):
     control_description = "Code changes are approved by a separate user before they are deployed to production."
     test_procedures = [
         "Internal Audit (IA) obtained and inspected a list of all repositories in the Github organization.",
