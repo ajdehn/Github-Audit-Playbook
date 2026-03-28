@@ -20,6 +20,37 @@ def confirmDeleteFolder(folder_path):
         else:
             print("Aborted. Folder not deleted.")
 
+def load_exclusions(file_path):
+    with open(file_path, "r") as f:
+        return json.load(f)["exclusions"]
+
+"""
+Returns True if the control is excluded.
+"""
+def is_control_excluded(control_id, exclusions):
+    today = datetime.utcnow().date()
+
+    for exclusion in exclusions:
+        if exclusion.get("exclusion_type") != "control":
+            continue
+
+        if exclusion.get("control_id") != control_id:
+            continue
+
+        # Permanent exclusion
+        if exclusion.get("permanent_exclusion"):
+            return True
+
+        # Check expiration date
+        exp_date = exclusion.get("expiration_date")
+
+        if exp_date and exp_date != "Permanent":
+            exp_date = datetime.strptime(exp_date, "%Y-%m-%d").date()
+            if exp_date >= today:
+                return True
+
+    return False
+
 """
     Saves a json file to a specified path
 """
@@ -118,8 +149,8 @@ def render_control_summary(control, page_width, label_style, value_style, list_s
 
     # Build summary table
     table_data = [ 
-        [Paragraph("Control ID", label_style), Paragraph(control.ctrl_id, value_style)], 
-        [Paragraph("Control Description", label_style), Paragraph(control.ctrl_desc, value_style)], 
+        [Paragraph("Control ID", label_style), Paragraph(control.control_id, value_style)], 
+        [Paragraph("Control Description", label_style), Paragraph(control.control_description, value_style)], 
         [Paragraph("Conclusion", label_style), conclusion], 
         [Paragraph("Test Procedures", label_style), test_procedures], 
         [Paragraph("Test Attributes", label_style), test_attributes],
@@ -184,7 +215,7 @@ def render_sample_table(control, page_width, label_style, value_style, center_st
 
     return table
 
-def render_summary_page(controls, styles):
+def render_summary_page(controls, styles, label_style, value_style):
     """Build summary page with pass/fail counts."""
     total = len(controls)
     passed = sum(1 for c in controls if c.result)
@@ -205,6 +236,31 @@ def render_summary_page(controls, styles):
 
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+        ("PADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 24))
+
+    control_summary_data = []
+    # Header row
+    control_summary_data.append([
+        Paragraph("Control ID", label_style), Paragraph("Control Description", label_style), Paragraph("In Scope", label_style)
+    ])
+    # Detailed Findings
+    for control in controls:
+        row = []
+        row.append(Paragraph(str(control.control_id), value_style))
+        row.append(Paragraph(str(control.control_description), value_style))
+        row.append(Paragraph("No" if control.isExcluded else "Yes", value_style))
+        
+        control_summary_data.append(row)
+
+    table = Table(control_summary_data, colWidths=[100, 200, 100])
+
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
         ("PADDING", (0, 0), (-1, -1), 6),
     ]))
@@ -283,7 +339,7 @@ def generate_pdf_report(audit, controls, filename="github_audit_report.pdf"):
     elements.append(Spacer(1, 12))
 
     # Summary Page
-    elements.extend(render_summary_page(controls, styles))
+    elements.extend(render_summary_page(controls, styles, label_style, value_style))
     elements.append(PageBreak())
 
     # Detailed Findings
