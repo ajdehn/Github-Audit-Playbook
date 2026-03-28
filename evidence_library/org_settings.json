@@ -31,7 +31,7 @@
     "billing_email": "aj@auditops.io",
     "default_repository_permission": "read",
     "members_can_create_repositories": true,
-    "two_factor_requirement_enabled": false,
+    "two_factor_requirement_enabled": true,
     "members_allowed_repository_creation_type": "all",
     "members_can_create_public_repositories": true,
     "members_can_create_private_repositories": true,
