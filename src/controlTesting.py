@@ -1,10 +1,11 @@
 import gatherEvidence
 import random
-from utils import parse_dt
+from utils import parse_dt, is_control_excluded
 from datetime import datetime
 
 class Control:
-    def __init__(self, control_id, control_description, test_procedures, test_attributes, table_headers=None, include_sample_number=False):
+    def __init__(self, control_id, control_description, test_procedures, test_attributes, audit, table_headers=None,
+     include_sample_number=False):
         self.control_id = control_id
         self.control_description = control_description
         self.test_procedures = test_procedures
@@ -12,9 +13,8 @@ class Control:
         self.table_headers = table_headers # NOTE: If test attributes aren't included, no table is required
         self.include_sample_number = include_sample_number       
         self.samples = []
-        self.findings = []
-        self.exclusions = []
         self.result = True  # NOTE: Set as 'True' by default. Will change to 'False' when a sample fails.
+        self.isExcluded = is_control_excluded(control_id, audit.exclusions)
 
     def __str__(self):
         return (
@@ -52,7 +52,7 @@ def test_org_mfa_settings(audit, control_id):
     test_attributes = [
         "two_factor_requirement_enabled was set to true."
     ]
-    ctrl = Control(control_id, control_description, test_procedures, test_attributes)
+    ctrl = Control(control_id, control_description, test_procedures, test_attributes, audit)
     org_settings = gatherEvidence.get_org_settings(audit)
     ctrl.result = org_settings.get("two_factor_requirement_enabled")
     return ctrl
@@ -71,7 +71,7 @@ def test_branch_protection_rules(audit, control_id):
         "Pull requests merging into the 'main' branch require at least one approval."
     ]
     table_headers = ["Repository Name", "Conclusion", "Comments"]
-    ctrl = Control(control_id, control_description, test_procedures, test_attributes, table_headers = table_headers)
+    ctrl = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers)
 
     # Get list of all repositories.
     repos = gatherEvidence.get_repos(audit)
@@ -101,7 +101,7 @@ def test_change_approvals(audit, control_id):
         "The PR was opened and approved by separate users."
     ]
     table_headers = ["Sample Number", "Repository Name", "PR Number", "Conclusion", "Comments"]
-    ctrl = Control(control_id, control_description, test_procedures, test_attributes, table_headers = table_headers, include_sample_number = True)
+    ctrl = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers, include_sample_number = True)
     # Get list of all repos. 
     repos = gatherEvidence.get_repos(audit)
     # Gather evidence from each individual repo.
