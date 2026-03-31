@@ -209,4 +209,4 @@ __marimo__/
 audit_evidence
 tmp
 .DS_Store
-exclusions.json
+config.json
