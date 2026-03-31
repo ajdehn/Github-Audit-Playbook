@@ -1,77 +1,120 @@
 import gatherEvidence
 import random
-from utils import parse_dt, is_control_excluded
+from utils import parse_dt, is_control_excluded, is_sample_excluded
 from datetime import datetime
+from dataclasses import dataclass, field
 
+# NOTE: Control results are set to "True" until an invalid control is identified.
+@dataclass
 class Control:
-    def __init__(self, control_id, control_description, test_procedures, test_attributes, audit, table_headers=None,
-     include_sample_number=False):
-        self.control_id = control_id
-        self.control_description = control_description
-        self.test_procedures = test_procedures
-        self.test_attributes = test_attributes
-        self.table_headers = table_headers # NOTE: If test attributes aren't included, no table is required
-        self.include_sample_number = include_sample_number       
-        self.samples = []
-        self.result = True  # NOTE: Set as 'True' by default. Will change to 'False' when a sample fails.
-        self.isExcluded = is_control_excluded(control_id, audit.exclusions)
+    control_id: str
+    control_description: str
+    test_procedures: List[str]
+    test_attributes: List[str]
+    audit: object
+    table_headers: Optional[List[str]] = None
+    include_sample_number: bool = False
+    samples: List["Sample"] = field(default_factory=list)
+    result: bool = True
+    result_description: str = ""
+    is_excluded: bool = False
+
+    def __post_init__(self):
+        # Set exclusion status AFTER object is created
+        self.is_excluded = is_control_excluded(
+            self.control_id,
+            self.audit.config
+        )
+
+        if self.is_excluded:
+            self.result = False
+            self.result_description = "Control is excluded. See config.json"
 
     def __str__(self):
         return (
-                f"control_id: {self.control_id}\n"
-                f"control_description: {self.control_description}\n"
-                f"result: {'Pass' if self.result else 'Fail'}\n"
-                f"include_sample_number: {self.include_sample_number}\n"
-                f"test_attributes: {self.test_attributes}"
-            )
-"""
-    NOTE: Sample class will be used even when performing 100% testing (Ex. Branch Protection Rules).
-"""
-class Sample:
-    def __init__(self, sample_id, control_id, test_attributes=None):
-        self.sample_id = sample_id
-        self.control_id = control_id
-        self.result = False # NOTE: Set as 'False' by default. Will only change to 'True' after evaluation.
-        self.comments = ""
-    
-    def __str__(self):
-            return f"result: {self.result}\nsample_id: {self.sample_id}\ntesting_attributes: {self.testing_attributes}\ncomments:{self.comments}"    
+            f"control_id: {self.control_id}\n"
+            f"control_description: {self.control_description}\n"
+            f"is_excluded: {self.is_excluded}\n"
+            f"result: {'Pass' if self.result else 'Fail'}\n"
+            f"result_description: {self.result_description}\n"
+        )
 
-# TODO: Implement exclusion logic.
-class Exclusion:
-    def __init__(self, exclusion_id, rationale, expiration_date):
-        self.exclusion_id = exclusion_id
-        self.rationale = rationale
-        self.expiration_date = expiration_date
+    def evaluate_all_samples(self):
+        if self.is_excluded:
+            return False
+        
+        # Remove excluded samples.
+        in_scope_samples = [s for s in self.samples if not s.is_excluded]
+
+        if not in_scope_samples:
+            # Decide your policy here:
+            return False  # safer default for audits
+
+        return all(s.result for s in in_scope_samples)
+
+# NOTE: Sample class will be used even when performing 100% testing (Ex. Branch Protection Rules).
+# NOTE: Result is set to "False" until logic determines sample meets testing criteria.
+@dataclass
+class Sample:
+    sample_id: Dict
+    control_id: str
+    result: bool = False
+    is_excluded: bool = False
+    comments: str = ""
+
+    def __str__(self):
+        return (
+            f"sample_id: {self.sample_id}\n"
+            f"result: {self.result}\n"
+            f"comments: {self.comments}\n"
+        )
+
 
 def test_org_mfa_settings(audit, control_id):
-    control_description = "Github organization settings require MFA to be enabled."
+    control_description = "The Github organization settings require users to enable MFA."
     test_procedures = [
-        "Internal Audit (IA) obtained and inspected the org-wide MFA settings."
+        f"Retrieved the Github organization settings by calling: https://api.github.com/orgs/{audit.org_name}.",
+        "Inspected 'org_settings.json' in the evidence folder to determine it is compliant with the test attributes below."        
     ]
     test_attributes = [
-        "two_factor_requirement_enabled was set to true."
+        "'two_factor_requirement_enabled' in org_settings.json is set to true."
     ]
-    ctrl = Control(control_id, control_description, test_procedures, test_attributes, audit)
+    control = Control(control_id, control_description, test_procedures, test_attributes, audit)
     org_settings = gatherEvidence.get_org_settings(audit)
-    ctrl.result = org_settings.get("two_factor_requirement_enabled")
-    return ctrl
+    control.result = org_settings.get("two_factor_requirement_enabled")
+    return control
+
+def test_org_members_create_public_repo_settings(audit, control_id):
+    control_description = "The Github organization is configured to prevents members from creating public resources."
+    test_procedures = [
+        f"Retrieved the Github organization settings by calling: https://api.github.com/orgs/{audit.org_name}.",
+        "Inspected 'org_settings.json' in the evidence folder to determine it is compliant with the test attributes below."
+    ]
+    test_attributes = [
+        "'members_can_create_public_repositories' in org_settings.json is set to false.",
+        "'members_can_create_public_pages' in org_settings.json is set to false."
+
+    ]
+    control = Control(control_id, control_description, test_procedures, test_attributes, audit)
+    org_settings = gatherEvidence.get_org_settings(audit)
+    control.result = org_settings.get("two_factor_requirement_enabled")
+    return control
 
 # Run test and build report for change approvals.
 def test_branch_protection_rules(audit, control_id):
-    control_description = "Code repositories have branch protection rules enabled."
+    control_description = "Code repositories are configured to require an approval before the change is merged."
     test_procedures = [
-        "Internal Audit (IA) obtained and inspected a list of all repositories in the Github organization.",
-        "IA worked with the engineering team to determine which repositories were in-scope for the audit.",
-        "For each in-scope repository, IA gathered a the branch protection rules and rulesets.",
-        "IA inspected all in-scope rulesets testing checking for the test attributes below."
+        "Retrieved a list of all repositories in the Github organization.",
+        "Worked with the engineering team to determine which repositories were in-scope for the audit.",
+        "For each in-scope repository, retrieved the branch protection rules and rulesets.",
+        "Inspected all in-scope repositories to determine if they were compliant with the test attributes below."
     ]
     test_attributes = [
         "An active ruleset OR branch protection rule is in enforced on the repository.",
         "Pull requests merging into the 'main' branch require at least one approval."
     ]
     table_headers = ["Repository Name", "Conclusion", "Comments"]
-    ctrl = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers)
+    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers)
 
     # Get list of all repositories.
     repos = gatherEvidence.get_repos(audit)
@@ -80,35 +123,46 @@ def test_branch_protection_rules(audit, control_id):
     for repo in repos:
         branch_protection_rules = gatherEvidence.get_branch_protection(audit, repo["name"])
         rulesets = gatherEvidence.get_repo_rulesets(audit, repo["name"])
+        sample = Sample(
+            sample_id = {"repo_name": repo["name"]},
+            control_id=control_id
+        )
+        
+        # Check if sample is in-scope
+        if is_sample_excluded(control_id, sample, audit.config):
+            # TODO: Update report when sample is excluded.
+            print(f"Repo Name: {repo["name"]}. Sample is excluded")
         sample = evaluate_branch_protection_rules(branch_protection_rules, rulesets, repo["name"], control_id)
-        ctrl.samples.append(sample)
+        control.samples.append(sample)
     # Document final control decision.
-    ctrl.result = all(s.result for s in ctrl.samples)
-    return ctrl
+    control.result = all(s.result for s in control.samples)
+    return control
 
 
 # Run test and build report for change approvals.
 def test_change_approvals(audit, control_id):
+    control_config = audit.config.get("control_config") or {}
+    num_samples_per_repo = control_config.get("num_samples_per_repo", 15)
     control_description = "Code changes are approved by a separate user before they are deployed to production."
     test_procedures = [
-        "Internal Audit (IA) obtained and inspected a list of all repositories in the Github organization.",
-        "IA worked with the engineering team to determine which repositories were in-scope for the audit.",
-        f"For each in-scope repository, IA gathered a list of merged pull requests (PR).",
-        f"IA randomly sampled {audit.sample_size} PRs from each in-scope repo and tested for the attributes below."
+        "Retrieved a list of all repositories in the Github organization.",
+        "Worked with the engineering team to determine which repositories were in-scope for the audit.",
+        f"For each in-scope repository, retrieved a list of merged pull requests.",
+        f"Randomly sampled {num_samples_per_repo} PRs from each in-scope repo and tested for the attributes below."
     ]
     test_attributes = [
-        "The PR was approved before it was merged to the main branch.",
-        "The PR was opened and approved by separate users."
+        "The pull request was approved before it was merged to the main branch.",
+        "The pull request was opened and approved by separate users."
     ]
     table_headers = ["Sample Number", "Repository Name", "PR Number", "Conclusion", "Comments"]
-    ctrl = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers, include_sample_number = True)
+    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers, include_sample_number = True)
     # Get list of all repos. 
     repos = gatherEvidence.get_repos(audit)
     # Gather evidence from each individual repo.
     for repo in repos:
         all_prs = gatherEvidence.get_prs(audit, repo["name"])
         total_prs = len(all_prs["items"])
-        num_samples = min(audit.sample_size, total_prs) # Choose the lesser of len(prs) or audit.sample_size
+        num_samples = min(num_samples_per_repo, total_prs) # Choose the lesser of len(prs) or audit.sample_size
         # Filter all_prs.json file down to a list of only PR numbers.
         all_pr_numbers = [pr["number"] for pr in all_prs["items"]]
         # Randomly select PRs for sampling. Sort to make final report cleaner.
@@ -118,10 +172,10 @@ def test_change_approvals(audit, control_id):
         for pr_number in prs_to_sample:
             pr = pr_lookup[pr_number]
             sample = evaluate_pr_approval(audit, pr, control_id)
-            ctrl.samples.append(sample)
+            control.samples.append(sample)
     # Document final control decision.
-    ctrl.result = all(s.result for s in ctrl.samples)
-    return ctrl
+    control.result = all(s.result for s in control.samples)
+    return control
 
 
 def evaluate_pr_approval(audit, pr, control_id):
