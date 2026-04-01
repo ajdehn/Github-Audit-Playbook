@@ -3,9 +3,9 @@ This playbook was written by [AJ Dehn](https://www.linkedin.com/in/ajdehn/) foun
 
 
 ## Project overview:
-* A read-only [script](/src/gatherEvidence.py) to generate JSON files directly from the Github API (no screenshots required) without affecting your environment.
+* A [script](/src/controlTesting.py) to gather evidence from the Github API (no screenshots required), perform testing.
+* A [script](/src/buildReport.py) to build a [Github audit report](/evidence_library/github_audit_report.pdf).
 * A [library](/evidence_library) of audit evidence created from the script with example JSON files.
-* An example [audit report](/evidence_library/github_audit_report.pdf) to document results.
 
 ## Benefits for Auditors:
 * High quality, automated evidence collection generated directly from the Github API.
