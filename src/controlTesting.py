@@ -4,6 +4,7 @@ import random
 from utils import parse_dt, is_control_excluded, is_sample_excluded, callGithubApi
 from datetime import datetime
 from dataclasses import dataclass, field
+from typing import List, Dict, Optional
 
 # NOTE: Control results are set to "True" until an invalid control is identified.
 @dataclass
@@ -90,7 +91,7 @@ def test_org_mfa_settings(audit, control_id):
     control.result = org_settings.get("two_factor_requirement_enabled")
     return control
 
-def test_org_members_create_public_repo_settings(audit, control_id):
+def test_org_members_create_public_resources(audit, control_id):
     control_description = "The Github organization is configured to prevents members from creating public resources."
     test_procedures = [
         f"Retrieved the Github organization settings by calling: https://api.github.com/orgs/{audit.org_name}.",
@@ -108,7 +109,10 @@ def test_org_members_create_public_repo_settings(audit, control_id):
     url = f"https://api.github.com/orgs/{audit.org_name}"
     org_settings = callGithubApi(audit, save_file_path, url)
 
-    control.result = org_settings.get("two_factor_requirement_enabled")
+    control.result = (
+        not org_settings.get("members_can_create_public_repositories", True)
+        and not org_settings.get("members_can_create_public_pages", True)
+    )
     return control
 
 # Run test and build report for change approvals.
@@ -158,12 +162,16 @@ def test_branch_protection_rules(audit, control_id):
         
         # Check if sample is in-scope
         if is_sample_excluded(control_id, sample, audit.config):
-            # TODO: Update report when sample is excluded.
-            print(f"Repo Name: {repo_name}. Sample is excluded")
-        sample = evaluate_branch_protection_rules(branch_protection_rules, rulesets, repo_name, control_id)
+            sample.is_excluded = True
+            sample.comments = "Sample excluded per config.json"
+            control.samples.append(sample)
+            continue
+        # Sample is included. Evaluate rulesets and branch protection rules.
+        sample = evaluate_branch_protection_rules(sample, branch_protection_rules, rulesets)
         control.samples.append(sample)
     # Document final control decision.
-    control.result = all(s.result for s in control.samples)
+    
+    control.result = control.evaluate_all_samples()
     return control
 
 
@@ -212,7 +220,7 @@ def test_change_approvals(audit, control_id):
             sample = evaluate_pr_approval(audit, pr, control_id)
             control.samples.append(sample)
     # Document final control decision.
-    control.result = all(s.result for s in control.samples)
+    control.result = control.evaluate_all_samples()
     return control
 
 
@@ -250,36 +258,33 @@ def evaluate_pr_approval(audit, pr, control_id):
     ]
 
     if not valid_approvals:
+        sample.result = False
         sample.comments = "No valid approvals before merge"
         return sample
 
-    sample.approved_before_merge = True
+    # NOTE: There is a valid approval based. Github functionality does not allow approvals post merge.
+    approved_by_separate_user = False
 
     for r in valid_approvals:
         reviewer = r["user"]["login"]
         if reviewer != sample.author:
-            sample.approver = reviewer
-            sample.approved_by_separate_user = True
+            approved_by_separate_user = True
             break
 
-    sample.result = sample.approved_before_merge and sample.approved_by_separate_user
+    sample.result = approved_by_separate_user
 
     if sample.result:
-        sample.comments = "Valid approval before merge by non-author"
+        sample.comments = "Valid approval before merge by non-author."
     elif not sample.approved_by_separate_user:
-        sample.comments = "Self-approval"
+        sample.comments = "Self-approval."
     else:
         sample.comments = "PR was merged before code change was approved."
 
     return sample
 
 
-def evaluate_branch_protection_rules(branch_protection, rulesets, repo_name, control_id):
-    sample = Sample(
-        sample_id={"repo_name": repo_name},
-        control_id=control_id
-    )
-
+def evaluate_branch_protection_rules(sample, branch_protection, rulesets):
+    repo_name = sample.sample_id.get("repo_name")
     has_any_protection = False
     requires_approval = False
 
@@ -362,7 +367,7 @@ def test_authorized_oauth_apps(audit, control_id):
             sample.comments = "Unauthorized OAuth app detected"
         control.samples.append(sample)
 
-    control.result = all(s.result for s in control.samples)
+    control.result = control.evaluate_all_samples()
     return control
 
 
@@ -406,7 +411,7 @@ def test_personal_access_tokens(audit, control_id):
         
         control.samples.append(sample)
 
-    control.result = all(s.result for s in control.samples)
+    control.result = control.evaluate_all_samples()
     return control
 
 
@@ -447,5 +452,5 @@ def test_repository_visibility(audit, control_id):
             sample.comments = f"Repository visibility is compliant ({'private' if repo.get('private') else 'public'})"
         control.samples.append(sample)
 
-    control.result = all(s.result for s in control.samples)
+    control.result = control.evaluate_all_samples()
     return control
