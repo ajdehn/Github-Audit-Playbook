@@ -4,7 +4,7 @@ This playbook was written by [AJ Dehn](https://www.linkedin.com/in/ajdehn/) foun
 
 ## Project overview:
 * A [script](/src/controlTesting.py) to gather evidence from the Github API (no screenshots required) and perform control testing.
-* A [script](/src/buildReport.py) to build a [Github audit report](/evidence_library/github_audit_report.pdf).
+* An example [Github Audit Report](/evidence_library/github_audit_report.pdf) built using [buildReport.py](/src/buildReport.py)
 * A [library](/evidence_library) of audit evidence created from the script with example JSON files.
 
 ## Benefits for Auditors:
