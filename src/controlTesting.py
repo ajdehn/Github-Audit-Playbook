@@ -1,6 +1,7 @@
 import gatherEvidence
+import os
 import random
-from utils import parse_dt, is_control_excluded, is_sample_excluded
+from utils import parse_dt, is_control_excluded, is_sample_excluded, callGithubApi
 from datetime import datetime
 from dataclasses import dataclass, field
 
@@ -80,7 +81,12 @@ def test_org_mfa_settings(audit, control_id):
         "'two_factor_requirement_enabled' in org_settings.json is set to true."
     ]
     control = Control(control_id, control_description, test_procedures, test_attributes, audit)
-    org_settings = gatherEvidence.get_org_settings(audit)
+
+    # Gather evidence.
+    save_file_path = os.path.join(audit.evidence_folder, "org_settings.json")
+    url = f"https://api.github.com/orgs/{audit.org_name}"
+    org_settings = callGithubApi(audit, save_file_path, url)
+
     control.result = org_settings.get("two_factor_requirement_enabled")
     return control
 
@@ -96,7 +102,12 @@ def test_org_members_create_public_repo_settings(audit, control_id):
 
     ]
     control = Control(control_id, control_description, test_procedures, test_attributes, audit)
-    org_settings = gatherEvidence.get_org_settings(audit)
+
+    # Gather evidence.
+    save_file_path = os.path.join(audit.evidence_folder, "org_settings.json")
+    url = f"https://api.github.com/orgs/{audit.org_name}"
+    org_settings = callGithubApi(audit, save_file_path, url)
+
     control.result = org_settings.get("two_factor_requirement_enabled")
     return control
 
@@ -116,23 +127,40 @@ def test_branch_protection_rules(audit, control_id):
     table_headers = ["Repository Name", "Conclusion", "Comments"]
     control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers)
 
-    # Get list of all repositories.
-    repos = gatherEvidence.get_repos(audit)
+    # Get list of all repos. Paginate because orgs with many repos may exceed one page
+    save_file_path = os.path.join(audit.evidence_folder, "all_repos.json")
+    url = f"https://api.github.com/orgs/{audit.org_name}/repos"
+    repos = callGithubApi(audit, save_file_path, url, paginate=True)
 
     # Audit Branch Protection Rules.
     for repo in repos:
-        branch_protection_rules = gatherEvidence.get_branch_protection(audit, repo["name"])
-        rulesets = gatherEvidence.get_repo_rulesets(audit, repo["name"])
+        repo_name = repo["name"]
+        # Gather evidence for each repo's branch protection rules.
+        save_file_path = os.path.join(audit.evidence_folder, repo_name, "branch_protection_rules.json")
+        os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
+        # TODO: Make dynamic based on the name of the default branch.
+        url = f"https://api.github.com/repos/{audit.org_name}/{repo_name}/branches/main/protection"
+        branch_protection_rules = callGithubApi(audit, save_file_path, url, handle_404=True)
+
+
+        # Gather evidence for each repo ruleset.
+        save_file_path = os.path.join(audit.evidence_folder, repo_name, "rulesets.json")
+        os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
+        url = f"https://api.github.com/repos/{audit.org_name}/{repo_name}/rulesets"
+        rulesets = callGithubApi(audit, save_file_path, url, handle_404=True)
+
+
+
         sample = Sample(
-            sample_id = {"repo_name": repo["name"]},
+            sample_id = {"repo_name": repo_name},
             control_id=control_id
         )
         
         # Check if sample is in-scope
         if is_sample_excluded(control_id, sample, audit.config):
             # TODO: Update report when sample is excluded.
-            print(f"Repo Name: {repo["name"]}. Sample is excluded")
-        sample = evaluate_branch_protection_rules(branch_protection_rules, rulesets, repo["name"], control_id)
+            print(f"Repo Name: {repo_name}. Sample is excluded")
+        sample = evaluate_branch_protection_rules(branch_protection_rules, rulesets, repo_name, control_id)
         control.samples.append(sample)
     # Document final control decision.
     control.result = all(s.result for s in control.samples)
@@ -156,11 +184,21 @@ def test_change_approvals(audit, control_id):
     ]
     table_headers = ["Sample Number", "Repository Name", "PR Number", "Conclusion", "Comments"]
     control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers, include_sample_number = True)
-    # Get list of all repos. 
-    repos = gatherEvidence.get_repos(audit)
-    # Gather evidence from each individual repo.
+
+    # Get list of all repos. Paginate because orgs with many repos may exceed one page
+    save_file_path = os.path.join(audit.evidence_folder, "all_repos.json")
+    url = f"https://api.github.com/orgs/{audit.org_name}/repos"
+    repos = callGithubApi(audit, save_file_path, url, paginate=True)
+
     for repo in repos:
-        all_prs = gatherEvidence.get_prs(audit, repo["name"])
+        repo_name = repo["name"]
+        # Gather evidence from each individual repo.
+        save_file_path = os.path.join(audit.evidence_folder, repo_name, "all_prs.json")
+        os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
+        query = f"repo:{audit.org_name}/{repo_name} is:pr is:merged merged:{audit.start_date}..{audit.end_date}"
+        url = "https://api.github.com/search/issues"
+        all_prs = callGithubApi(audit, save_file_path, url, params={"q": query, "per_page": 100})
+
         total_prs = len(all_prs["items"])
         num_samples = min(num_samples_per_repo, total_prs) # Choose the lesser of len(prs) or audit.sample_size
         # Filter all_prs.json file down to a list of only PR numbers.
@@ -179,10 +217,12 @@ def test_change_approvals(audit, control_id):
 
 
 def evaluate_pr_approval(audit, pr, control_id):
+    repo_name = pr["repository_url"].split("/")[-1]
+    pr_number = pr["number"]
     sample = Sample(
         sample_id={
-            "repo_name": pr["repository_url"].split("/")[-1],
-            "pr_number": pr["number"]
+            "repo_name": repo_name,
+            "pr_number": pr_number
         },
         control_id=control_id
     )
@@ -195,7 +235,11 @@ def evaluate_pr_approval(audit, pr, control_id):
         sample.comments = "Invalid sample. PR was not merged."
         return sample
 
-    reviews = gatherEvidence.get_pr_reviews(audit, sample.sample_id["repo_name"], pr["number"])
+    save_file_path = os.path.join(audit.evidence_folder, repo_name, "prs", str(pr_number), "reviews.json")
+    os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
+    url = f"https://api.github.com/repos/{audit.org_name}/{repo_name}/pulls/{pr_number}/reviews"
+    reviews = callGithubApi(audit, save_file_path, url)
+
 
     valid_approvals = [
         r for r in reviews
@@ -283,3 +327,125 @@ def evaluate_branch_protection_rules(branch_protection, rulesets, repo_name, con
     sample.comments = "Branch protection or ruleset requires PR approval"
 
     return sample
+
+def test_authorized_oauth_apps(audit, control_id):
+    """
+    Control: Ensure only approved OAuth apps are authorized for the account/org.
+    """
+    control_description = "Only approved OAuth applications are authorized for the GitHub account."
+    test_procedures = [
+        "Retrieved the list of authorized OAuth apps via the GitHub API.",
+        "Compared each authorized app against the approved applications list in the config."
+    ]
+    test_attributes = [
+        "All OAuth apps must be approved and documented in the audit config.",
+        "No unauthorized or unknown OAuth apps should exist."
+    ]
+    table_headers = ["OAuth App Name", "Conclusion", "Comments"]
+    
+    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers=table_headers)
+
+    oauth_apps = gatherEvidence.get_authorized_oauth_apps(audit)  # Returns list of dicts with 'name' & 'id'
+
+    approved_apps = audit.config.get("approved_oauth_apps", [])
+    
+    for app in oauth_apps:
+        sample = Sample(
+            sample_id={"app_name": app["name"], "app_id": app["id"]},
+            control_id=control_id
+        )
+        if app["name"] in approved_apps:
+            sample.result = True
+            sample.comments = "Approved OAuth app"
+        else:
+            sample.result = False
+            sample.comments = "Unauthorized OAuth app detected"
+        control.samples.append(sample)
+
+    control.result = all(s.result for s in control.samples)
+    return control
+
+
+def test_personal_access_tokens(audit, control_id):
+    """
+    Control: Ensure personal access tokens (PATs) are valid, rotated, and scoped appropriately.
+    """
+    control_description = "All Personal Access Tokens (PATs) are valid, rotated, and minimally scoped."
+    test_procedures = [
+        "Retrieved all PATs associated with the account via the GitHub API.",
+        "Checked each PAT for expiration date and assigned scopes against minimum required."
+    ]
+    test_attributes = [
+        "No expired PATs exist.",
+        "PAT scopes are restricted to minimum required permissions.",
+        "All PATs are rotated per organizational policy."
+    ]
+    table_headers = ["Token Name", "Conclusion", "Comments"]
+
+    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers=table_headers)
+
+    pats = gatherEvidence.get_personal_access_tokens(audit)  # Returns list of dicts with 'name', 'expires_at', 'scopes'
+
+    for token in pats:
+        sample = Sample(
+            sample_id={"token_name": token["name"]},
+            control_id=control_id
+        )
+        expired = token.get("expires_at") and datetime.utcnow() > parse_dt(token["expires_at"])
+        excessive_scope = any(scope not in audit.config.get("allowed_pat_scopes", []) for scope in token.get("scopes", []))
+
+        if expired:
+            sample.result = False
+            sample.comments = "Token has expired"
+        elif excessive_scope:
+            sample.result = False
+            sample.comments = f"Token has excessive scopes: {token['scopes']}"
+        else:
+            sample.result = True
+            sample.comments = "Token is valid and appropriately scoped"
+        
+        control.samples.append(sample)
+
+    control.result = all(s.result for s in control.samples)
+    return control
+
+
+def test_repository_visibility(audit, control_id):
+    """
+    Control: Ensure no sensitive repositories are public.
+    """
+    control_description = "All sensitive repositories are private or restricted."
+    test_procedures = [
+        "Retrieved a list of all repositories in the organization/account.",
+        "Checked repository visibility against the audit config to ensure sensitive repos are not public."
+    ]
+    test_attributes = [
+        "No sensitive or classified repositories are public.",
+        "Public repositories comply with the organization's data classification policy."
+    ]
+    table_headers = ["Repository Name", "Conclusion", "Comments"]
+
+    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers=table_headers)
+
+    # Get list of all repos. Paginate because orgs with many repos may exceed one page
+    save_file_path = os.path.join(audit.evidence_folder, "all_repos.json")
+    url = f"https://api.github.com/orgs/{audit.org_name}/repos"
+    repos = callGithubApi(audit, save_file_path, url, paginate=True)
+
+    sensitive_repos = audit.config.get("sensitive_repos", [])
+
+    for repo in repos:
+        sample = Sample(
+            sample_id={"repo_name": repo["name"]},
+            control_id=control_id
+        )
+        if repo["name"] in sensitive_repos and not repo.get("private", True):
+            sample.result = False
+            sample.comments = "Sensitive repository is public"
+        else:
+            sample.result = True
+            sample.comments = f"Repository visibility is compliant ({'private' if repo.get('private') else 'public'})"
+        control.samples.append(sample)
+
+    control.result = all(s.result for s in control.samples)
+    return control

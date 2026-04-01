@@ -29,5 +29,8 @@ if __name__ == "__main__":
     controls.append(controlTesting.test_branch_protection_rules(audit, "C2000"))
     controls.append(controlTesting.test_change_approvals(audit, "C2010"))
     controls.append(controlTesting.test_org_members_create_public_repo_settings(audit, "C2020"))
+    #controls.append(controlTesting.test_authorized_oauth_apps(audit, "C2030"))
+    #controls.append(controlTesting.test_personal_access_tokens(audit, "C2040"))
+    #controls.append(controlTesting.test_repository_visibility(audit, "C2050"))
 
     generate_pdf_report(audit, controls, "tmp/github_audit_report.pdf")
