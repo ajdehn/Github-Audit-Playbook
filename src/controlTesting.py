@@ -75,11 +75,16 @@ class Sample:
 def test_org_mfa_settings(audit, control_id):
     control_description = "The Github organization settings require users to enable MFA."
     test_procedures = [
-        f"Retrieved the Github organization settings by calling: https://api.github.com/orgs/{audit.org_name}.",
-        "Inspected 'org_settings.json' in the evidence folder to determine it is compliant with the test attributes below."        
+        f"Obtained a the Github organization settings calling: https://api.github.com/orgs/{audit.org_name}.",
+        "Saved the Github organization settings in the evidence folder. See (org_settings.json).",
+        "Inspected the organization ettings to determine if it was compliant with the test attributes below."        
     ]
     test_attributes = [
-        "'two_factor_requirement_enabled' in org_settings.json is set to true."
+        "'two_factor_requirement_enabled' is set to true."
+    ]
+    remediation_guidance = [
+        f"Navigate to your Github organization settings: https://api.github.com/orgs/{audit.org_name}.",
+        f""
     ]
     control = Control(control_id, control_description, test_procedures, test_attributes, audit)
 
