@@ -34,4 +34,4 @@ if __name__ == "__main__":
     #controls.append(controlTesting.test_authorized_oauth_apps(audit, "C2030"))
     #controls.append(controlTesting.test_personal_access_tokens(audit, "C2040"))
 
-    generate_pdf_report(audit, controls, "tmp/github_audit_report.pdf")
+    generate_pdf_report(audit, controls, "Github", file_name="tmp/github_audit_report.pdf")
