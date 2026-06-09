@@ -1,5 +1,5 @@
 import os
-from utils import callGithubApi
+from utils import call_github_api
 
 def get_authorized_oauth_apps(audit):
     """

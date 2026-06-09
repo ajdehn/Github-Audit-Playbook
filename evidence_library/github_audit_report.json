@@ -1,0 +1,53 @@
+{
+    "metadata": {
+        "scope": {
+            "org_name": "itauditguy-training",
+            "start_date": "2026-01-01",
+            "end_date": "2026-03-31"
+        },
+        "report_date": "2026-06-09"
+    },
+    "config": {
+        "control_config": {
+            "num_samples_per_repo": 5
+        },
+        "control_exclusions": {
+            "C5010": [
+                {
+                    "rationale": "No associated risk.",
+                    "permanent": false,
+                    "expiration_date": "2026-12-31",
+                    "approvers": [
+                        "aj@auditops.io"
+                    ]
+                }
+            ]
+        },
+        "sample_exclusions": {
+            "C2000": [
+                {
+                    "sample_id": {
+                        "repo_name": "training"
+                    },
+                    "rationale": "This repo is intended to be public.",
+                    "permanent": true,
+                    "expiration_date": null,
+                    "approvers": [
+                        "aj@auditops.io"
+                    ]
+                },
+                {
+                    "sample_id": {
+                        "repo_name": "ruleset-bypass"
+                    },
+                    "rationale": "Don't care about this repo.",
+                    "permanent": false,
+                    "expiration_date": "2026-03-31",
+                    "approvers": [
+                        "aj@auditops.io"
+                    ]
+                }
+            ]
+        }
+    }
+}
