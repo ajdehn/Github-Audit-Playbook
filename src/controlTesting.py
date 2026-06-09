@@ -1,7 +1,7 @@
 import gatherEvidence
 import os
 import random
-from utils import parse_dt, is_control_excluded, is_sample_excluded, callGithubApi
+from utils import parse_dt, is_control_excluded, is_sample_excluded, call_github_api
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional
@@ -9,8 +9,8 @@ from typing import List, Dict, Optional
 # NOTE: Control results are set to "True" until an invalid control is identified.
 @dataclass
 class Control:
-    control_id: str
-    control_description: str
+    test_id: str
+    test_description: str
     test_procedures: List[str]
     test_attributes: List[str]
     audit: object
@@ -24,7 +24,7 @@ class Control:
     def __post_init__(self):
         # Set exclusion status AFTER object is created
         self.is_excluded = is_control_excluded(
-            self.control_id,
+            self.test_id,
             self.audit.config
         )
 
@@ -32,10 +32,23 @@ class Control:
             self.result = False
             self.result_description = "Control is excluded. See config.json"
 
+    def to_dict(self):
+        result = {
+            "test_id": self.test_id,
+            "test_description": self.test_description,
+            "test_procedures": self.test_procedures,
+            "test_attributes": self.test_attributes,
+        }
+        # Include samples, if present.
+        if self.samples:  
+            result["samples"] = [s.to_dict() for s in self.samples]
+
+        return result
+
     def __str__(self):
         return (
-            f"control_id: {self.control_id}\n"
-            f"control_description: {self.control_description}\n"
+            f"test_id: {self.test_id}\n"
+            f"test_description: {self.test_description}\n"
             f"is_excluded: {self.is_excluded}\n"
             f"result: {'Pass' if self.result else 'Fail'}\n"
             f"result_description: {self.result_description}\n"
@@ -59,7 +72,7 @@ class Control:
 @dataclass
 class Sample:
     sample_id: Dict
-    control_id: str
+    test_id: str
     result: bool = False
     is_excluded: bool = False
     comments: str = ""
@@ -71,48 +84,49 @@ class Sample:
             f"comments: {self.comments}\n"
         )
 
+    def to_dict(self):
+        return {
+            "sample_id": self.sample_id,
+            "result": self.result,
+            "comments": self.comments,
+        }        
 
-def test_org_mfa_settings(audit, control_id):
-    control_description = "The Github organization settings require users to enable MFA."
+
+def test_org_mfa_settings(audit, test_id):
+    test_description = "The GitHub organization settings require users to enable MFA."
     test_procedures = [
-        f"Obtained a the Github organization settings calling: https://api.github.com/orgs/{audit.org_name}.",
-        "Saved the Github organization settings in the evidence folder. See (org_settings.json).",
-        "Inspected the organization ettings to determine if it was compliant with the test attributes below."        
-    ]
+        f"Obtained the GitHub organization settings by calling: https://api.github.com/orgs/{audit.org_name}.",
+        "Saved the GitHub organization settings: org_settings.json.",
+        "Inspected the organization settings to determine if they comply with the test attribute(s) defined below."        
+    ]   
     test_attributes = [
         "'two_factor_requirement_enabled' is set to true."
     ]
-    remediation_guidance = [
-        f"Navigate to your Github organization settings: https://api.github.com/orgs/{audit.org_name}.",
-        f""
-    ]
-    control = Control(control_id, control_description, test_procedures, test_attributes, audit)
+    control = Control(test_id, test_description, test_procedures, test_attributes, audit)
 
     # Gather evidence.
-    save_file_path = os.path.join(audit.evidence_folder, "org_settings.json")
     url = f"https://api.github.com/orgs/{audit.org_name}"
-    org_settings = callGithubApi(audit, save_file_path, url)
+    org_settings = call_github_api(audit, "org_settings.json", url)
 
     control.result = org_settings.get("two_factor_requirement_enabled")
     return control
 
-def test_org_members_create_public_resources(audit, control_id):
-    control_description = "The Github organization is configured to prevents members from creating public resources."
+def test_org_members_create_public_resources(audit, test_id):
+    test_description = "The GitHub organization settings prevent members from creating public resources."
     test_procedures = [
-        f"Retrieved the Github organization settings by calling: https://api.github.com/orgs/{audit.org_name}.",
-        "Inspected 'org_settings.json' in the evidence folder to determine it is compliant with the test attributes below."
+        f"Obtained the GitHub organization settings by calling: https://api.github.com/orgs/{audit.org_name}.",
+        "Saved the GitHub organization settings: org_settings.json.",
+        "Inspected the organization settings to determine if they comply with the test attribute(s) defined below."        
     ]
     test_attributes = [
         "'members_can_create_public_repositories' in org_settings.json is set to false.",
         "'members_can_create_public_pages' in org_settings.json is set to false."
-
     ]
-    control = Control(control_id, control_description, test_procedures, test_attributes, audit)
+    control = Control(test_id, test_description, test_procedures, test_attributes, audit)
 
     # Gather evidence.
-    save_file_path = os.path.join(audit.evidence_folder, "org_settings.json")
     url = f"https://api.github.com/orgs/{audit.org_name}"
-    org_settings = callGithubApi(audit, save_file_path, url)
+    org_settings = call_github_api(audit, "org_settings.json", url)
 
     control.result = (
         not org_settings.get("members_can_create_public_repositories", True)
@@ -121,52 +135,45 @@ def test_org_members_create_public_resources(audit, control_id):
     return control
 
 # Run test and build report for change approvals.
-def test_branch_protection_rules(audit, control_id):
-    control_description = "Code repositories are configured to require an approval before the change is merged."
+def test_branch_protection_rules(audit, test_id):
+    test_description = "Code repositories are configured to require an approval before the change is merged."
     test_procedures = [
-        "Retrieved a list of all repositories in the Github organization.",
+        "Retrieved a list of all repositories in the GitHub organization.",
         "Worked with the engineering team to determine which repositories were in-scope for the audit.",
         "For each in-scope repository, retrieved the branch protection rules and rulesets.",
         "Inspected all in-scope repositories to determine if they were compliant with the test attributes below."
     ]
     test_attributes = [
-        "An active ruleset OR branch protection rule is in enforced on the repository.",
+        "An active ruleset OR branch protection rule is enforced on the repository.",
         "Pull requests merging into the 'main' branch require at least one approval."
     ]
     table_headers = ["Repository Name", "Conclusion", "Comments"]
-    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers)
+    control = Control(test_id, test_description, test_procedures, test_attributes, audit, table_headers = table_headers)
 
     # Get list of all repos. Paginate because orgs with many repos may exceed one page
-    save_file_path = os.path.join(audit.evidence_folder, "all_repos.json")
     url = f"https://api.github.com/orgs/{audit.org_name}/repos"
-    repos = callGithubApi(audit, save_file_path, url, paginate=True)
+    repos = call_github_api(audit, "all_repos.json", url, paginate=True)
 
     # Audit Branch Protection Rules.
     for repo in repos:
         repo_name = repo["name"]
         # Gather evidence for each repo's branch protection rules.
-        save_file_path = os.path.join(audit.evidence_folder, repo_name, "branch_protection_rules.json")
-        os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
         # TODO: Make dynamic based on the name of the default branch.
         url = f"https://api.github.com/repos/{audit.org_name}/{repo_name}/branches/main/protection"
-        branch_protection_rules = callGithubApi(audit, save_file_path, url, handle_404=True)
+        branch_protection_rules = call_github_api(audit, f"repositories/{repo_name}/branch_protection_rules.json", url, handle_404=True)
 
 
         # Gather evidence for each repo ruleset.
-        save_file_path = os.path.join(audit.evidence_folder, repo_name, "rulesets.json")
-        os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
         url = f"https://api.github.com/repos/{audit.org_name}/{repo_name}/rulesets"
-        rulesets = callGithubApi(audit, save_file_path, url, handle_404=True)
-
-
+        rulesets = call_github_api(audit, f"repositories/{repo_name}/rulesets.json", url, handle_404=True)
 
         sample = Sample(
             sample_id = {"repo_name": repo_name},
-            control_id=control_id
+            test_id=test_id
         )
         
         # Check if sample is in-scope
-        if is_sample_excluded(control_id, sample, audit.config):
+        if is_sample_excluded(test_id, sample, audit.config):
             sample.is_excluded = True
             sample.comments = "Sample excluded per config.json"
             control.samples.append(sample)
@@ -181,12 +188,12 @@ def test_branch_protection_rules(audit, control_id):
 
 
 # Run test and build report for change approvals.
-def test_change_approvals(audit, control_id):
+def test_change_approvals(audit, test_id):
     control_config = audit.config.get("control_config") or {}
     num_samples_per_repo = control_config.get("num_samples_per_repo", 15)
-    control_description = "Code changes are approved by a separate user before they are deployed to production."
+    test_description = "Code changes are approved by a separate user before they are deployed to production."
     test_procedures = [
-        "Retrieved a list of all repositories in the Github organization.",
+        "Retrieved a list of all repositories in the GitHub organization.",
         "Worked with the engineering team to determine which repositories were in-scope for the audit.",
         f"For each in-scope repository, retrieved a list of merged pull requests.",
         f"Randomly sampled {num_samples_per_repo} PRs from each in-scope repo and tested for the attributes below."
@@ -196,21 +203,18 @@ def test_change_approvals(audit, control_id):
         "The pull request was opened and approved by separate users."
     ]
     table_headers = ["Sample Number", "Repository Name", "PR Number", "Conclusion", "Comments"]
-    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers = table_headers, include_sample_number = True)
+    control = Control(test_id, test_description, test_procedures, test_attributes, audit, table_headers = table_headers, include_sample_number = True)
 
     # Get list of all repos. Paginate because orgs with many repos may exceed one page
-    save_file_path = os.path.join(audit.evidence_folder, "all_repos.json")
     url = f"https://api.github.com/orgs/{audit.org_name}/repos"
-    repos = callGithubApi(audit, save_file_path, url, paginate=True)
+    repos = call_github_api(audit, "all_repos.json", url, paginate=True)
 
     for repo in repos:
         repo_name = repo["name"]
         # Gather evidence from each individual repo.
-        save_file_path = os.path.join(audit.evidence_folder, repo_name, "all_prs.json")
-        os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
         query = f"repo:{audit.org_name}/{repo_name} is:pr is:merged merged:{audit.start_date}..{audit.end_date}"
         url = "https://api.github.com/search/issues"
-        all_prs = callGithubApi(audit, save_file_path, url, params={"q": query, "per_page": 100})
+        all_prs = call_github_api(audit, f"repositories/{repo_name}/all_prs.json", url, params={"q": query, "per_page": 100})
 
         total_prs = len(all_prs["items"])
         num_samples = min(num_samples_per_repo, total_prs) # Choose the lesser of len(prs) or audit.sample_size
@@ -222,14 +226,14 @@ def test_change_approvals(audit, control_id):
         pr_lookup = {pr["number"]: pr for pr in all_prs["items"]}
         for pr_number in prs_to_sample:
             pr = pr_lookup[pr_number]
-            sample = evaluate_pr_approval(audit, pr, control_id)
+            sample = evaluate_pr_approval(audit, pr, test_id)
             control.samples.append(sample)
     # Document final control decision.
     control.result = control.evaluate_all_samples()
     return control
 
 
-def evaluate_pr_approval(audit, pr, control_id):
+def evaluate_pr_approval(audit, pr, test_id):
     repo_name = pr["repository_url"].split("/")[-1]
     pr_number = pr["number"]
     sample = Sample(
@@ -237,7 +241,7 @@ def evaluate_pr_approval(audit, pr, control_id):
             "repo_name": repo_name,
             "pr_number": pr_number
         },
-        control_id=control_id
+        test_id=test_id
     )
 
     merged_at = parse_dt(pr["pull_request"]["merged_at"])
@@ -248,10 +252,9 @@ def evaluate_pr_approval(audit, pr, control_id):
         sample.comments = "Invalid sample. PR was not merged."
         return sample
 
-    save_file_path = os.path.join(audit.evidence_folder, repo_name, "prs", str(pr_number), "reviews.json")
-    os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
+    relative_file_path = os.path.join("repositories", repo_name, "prs", str(pr_number), "reviews.json")
     url = f"https://api.github.com/repos/{audit.org_name}/{repo_name}/pulls/{pr_number}/reviews"
-    reviews = callGithubApi(audit, save_file_path, url)
+    reviews = call_github_api(audit, relative_file_path, url)
 
 
     valid_approvals = [
@@ -267,7 +270,7 @@ def evaluate_pr_approval(audit, pr, control_id):
         sample.comments = "No valid approvals before merge"
         return sample
 
-    # NOTE: There is a valid approval based. Github functionality does not allow approvals post merge.
+    # NOTE: There is a valid approval based. GitHub functionality does not allow approvals post merge.
     approved_by_separate_user = False
 
     for r in valid_approvals:
@@ -338,11 +341,11 @@ def evaluate_branch_protection_rules(sample, branch_protection, rulesets):
 
     return sample
 
-def test_authorized_oauth_apps(audit, control_id):
+def test_authorized_oauth_apps(audit, test_id):
     """
     Control: Ensure only approved OAuth apps are authorized for the account/org.
     """
-    control_description = "Only approved OAuth applications are authorized for the GitHub account."
+    test_description = "Only approved OAuth applications are authorized for the GitHub account."
     test_procedures = [
         "Retrieved the list of authorized OAuth apps via the GitHub API.",
         "Compared each authorized app against the approved applications list in the config."
@@ -353,7 +356,7 @@ def test_authorized_oauth_apps(audit, control_id):
     ]
     table_headers = ["OAuth App Name", "Conclusion", "Comments"]
     
-    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers=table_headers)
+    control = Control(test_id, test_description, test_procedures, test_attributes, audit, table_headers=table_headers)
 
     oauth_apps = gatherEvidence.get_authorized_oauth_apps(audit)  # Returns list of dicts with 'name' & 'id'
 
@@ -362,7 +365,7 @@ def test_authorized_oauth_apps(audit, control_id):
     for app in oauth_apps:
         sample = Sample(
             sample_id={"app_name": app["name"], "app_id": app["id"]},
-            control_id=control_id
+            test_id=test_id
         )
         if app["name"] in approved_apps:
             sample.result = True
@@ -376,11 +379,11 @@ def test_authorized_oauth_apps(audit, control_id):
     return control
 
 
-def test_personal_access_tokens(audit, control_id):
+def test_personal_access_tokens(audit, test_id):
     """
     Control: Ensure personal access tokens (PATs) are valid, rotated, and scoped appropriately.
     """
-    control_description = "All Personal Access Tokens (PATs) are valid, rotated, and minimally scoped."
+    test_description = "All Personal Access Tokens (PATs) are valid, rotated, and minimally scoped."
     test_procedures = [
         "Retrieved all PATs associated with the account via the GitHub API.",
         "Checked each PAT for expiration date and assigned scopes against minimum required."
@@ -392,14 +395,14 @@ def test_personal_access_tokens(audit, control_id):
     ]
     table_headers = ["Token Name", "Conclusion", "Comments"]
 
-    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers=table_headers)
+    control = Control(test_id, test_description, test_procedures, test_attributes, audit, table_headers=table_headers)
 
     pats = gatherEvidence.get_personal_access_tokens(audit)  # Returns list of dicts with 'name', 'expires_at', 'scopes'
 
     for token in pats:
         sample = Sample(
             sample_id={"token_name": token["name"]},
-            control_id=control_id
+            test_id=test_id
         )
         expired = token.get("expires_at") and datetime.utcnow() > parse_dt(token["expires_at"])
         excessive_scope = any(scope not in audit.config.get("allowed_pat_scopes", []) for scope in token.get("scopes", []))
@@ -409,7 +412,7 @@ def test_personal_access_tokens(audit, control_id):
             sample.comments = "Token has expired"
         elif excessive_scope:
             sample.result = False
-            sample.comments = f"Token has excessive scopes: {token['scopes']}"
+            sample.comments = f"Token has excessive scope: {token['scopes']}"
         else:
             sample.result = True
             sample.comments = "Token is valid and appropriately scoped"
@@ -420,11 +423,11 @@ def test_personal_access_tokens(audit, control_id):
     return control
 
 
-def test_repository_visibility(audit, control_id):
+def test_repository_visibility(audit, test_id):
     """
     Control: Ensure no sensitive repositories are public.
     """
-    control_description = "All sensitive repositories are private or restricted."
+    test_description = "All sensitive repositories are private or restricted."
     test_procedures = [
         "Retrieved a list of all repositories in the organization/account.",
         "Checked repository visibility against the audit config to ensure sensitive repos are not public."
@@ -435,19 +438,18 @@ def test_repository_visibility(audit, control_id):
     ]
     table_headers = ["Repository Name", "Conclusion", "Comments"]
 
-    control = Control(control_id, control_description, test_procedures, test_attributes, audit, table_headers=table_headers)
+    control = Control(test_id, test_description, test_procedures, test_attributes, audit, table_headers=table_headers)
 
     # Get list of all repos. Paginate because orgs with many repos may exceed one page
-    save_file_path = os.path.join(audit.evidence_folder, "all_repos.json")
     url = f"https://api.github.com/orgs/{audit.org_name}/repos"
-    repos = callGithubApi(audit, save_file_path, url, paginate=True)
+    repos = call_github_api(audit, "all_repos.json", url, paginate=True)
 
     sensitive_repos = audit.config.get("sensitive_repos", [])
 
     for repo in repos:
         sample = Sample(
             sample_id={"repo_name": repo["name"]},
-            control_id=control_id
+            test_id=test_id
         )
         if repo["name"] in sensitive_repos and not repo.get("private", True):
             sample.result = False

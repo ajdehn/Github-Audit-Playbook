@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 import controlTesting
 import os
-from utils import confirmDeleteFolder, load_config
+from datetime import datetime, timezone
+from utils import confirmDeleteFolder, load_config, save_json
 from buildReport import generate_pdf_report
 
 class Audit:
@@ -15,6 +16,19 @@ class Audit:
         self.end_date = end_date                                    # Final date of the audit period (YYYY-MM-DD)
         self.evidence_folder = evidence_folder                      # Name of the evidence_folder
         self.config = load_config(config_file_path)                 # Control and sample exclusions
+    
+    def to_dict(self):
+        return {
+            "metadata": {
+                "scope": {
+                    "org_name": self.org_name,
+                    "start_date": self.start_date,
+                    "end_date": self.end_date
+                },
+                "report_date": datetime.now(timezone.utc).strftime('%Y-%m-%d')
+            },
+            "config": self.config
+        }
 
 if __name__ == "__main__":
     # Load variables from .env file
@@ -34,4 +48,6 @@ if __name__ == "__main__":
     #controls.append(controlTesting.test_authorized_oauth_apps(audit, "C2030"))
     #controls.append(controlTesting.test_personal_access_tokens(audit, "C2040"))
 
+    # Save audit reports (JSON and PDF version).
+    save_json(audit.to_dict(), f"tmp/github_audit_report.json")
     generate_pdf_report(audit, controls, "Github", file_name="tmp/github_audit_report.pdf")

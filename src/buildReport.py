@@ -36,8 +36,8 @@ def render_control_summary(control, page_width):
     
     # Build summary table
     table_data = [ 
-        [Paragraph("Control ID", LABEL_STYLE), Paragraph(control.control_id, VALUE_STYLE)], 
-        [Paragraph("Control Description", LABEL_STYLE), Paragraph(control.control_description, VALUE_STYLE)],
+        [Paragraph("Control ID", LABEL_STYLE), Paragraph(control.test_id, VALUE_STYLE)], 
+        [Paragraph("Control Description", LABEL_STYLE), Paragraph(control.test_description, VALUE_STYLE)],
         [Paragraph("Test Procedures", LABEL_STYLE), test_procedures], 
         [Paragraph("Test Attributes", LABEL_STYLE), test_attributes],
         [Paragraph("Conclusion", LABEL_STYLE), conclusion],
@@ -149,8 +149,8 @@ def render_summary_page(controls, styles):
     # Detailed Findings
     for control in controls:
         row = []
-        row.append(Paragraph(str(control.control_id), VALUE_STYLE))
-        row.append(Paragraph(str(control.control_description), VALUE_STYLE))
+        row.append(Paragraph(str(control.test_id), VALUE_STYLE))
+        row.append(Paragraph(str(control.test_description), VALUE_STYLE))
         if control.is_excluded:
             control_result = "Out of Scope"
         else:

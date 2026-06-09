@@ -23,8 +23,8 @@ def load_config(file_path):
 """
 Returns True if the control is excluded.
 """
-def is_control_excluded(control_id, config):
-    for e in config["control_exclusions"].get(control_id, []):
+def is_control_excluded(test_id, config):
+    for e in config["control_exclusions"].get(test_id, []):
         if is_exclusion_active(e):
             return True
     return False
@@ -42,8 +42,8 @@ def is_exclusion_active(exclusion):
         return exp_date >= today
     return False
 
-def check_sample_exclusion(control_id, sample, config):
-    if is_sample_excluded(control_id, sample, config):
+def check_sample_exclusion(test_id, sample, config):
+    if is_sample_excluded(test_id, sample, config):
         sample.is_excluded = True
         sample.comments = "Sample is excluded. See config.json"
         return sample
@@ -52,8 +52,8 @@ def check_sample_exclusion(control_id, sample, config):
 """
 Returns True if a sample is excluded.
 """
-def is_sample_excluded(control_id, sample, config):
-    for e in config["sample_exclusions"].get(control_id, []):
+def is_sample_excluded(test_id, sample, config):
+    for e in config["sample_exclusions"].get(test_id, []):
         config_sample_id = e.get("sample_id", {})
         match_sample_id = sample.sample_id
 
@@ -66,7 +66,7 @@ def is_sample_excluded(control_id, sample, config):
 """
     Saves a json file to a specified path
 """
-def saveJson(extract, filePath):
+def save_json(extract, filePath):
     # isolating out the directory path to the file and creating the directory
     brokenUpPath = filePath.split('/')
     dirPathToFile = '/'.join(brokenUpPath[:len(brokenUpPath) - 1])
@@ -93,7 +93,7 @@ def load_json_if_exists(file_path):
 
     Args:
         audit: Audit object containing gh_token and evidence_folder
-        save_file_path: Local path to save JSON evidence
+        relative_path: file path describing where evidence should be saved in the evidence folder (e.g., repositories/[repo_name]/buckets.json)
         github_url: Github API endpoint
         params: Optional dictionary of query parameters
         paginate: If True, fetch all pages automatically
@@ -102,10 +102,14 @@ def load_json_if_exists(file_path):
     Returns:
         dict or list: JSON data from API
 """
-def callGithubApi(audit, save_file_path, github_url, params=None, paginate=False, handle_404=False):
+def call_github_api(audit, relative_path, github_url, params=None, paginate=False, handle_404=False):
     # Return cached evidence if it exists
+
+    save_file_path = os.path.join(audit.evidence_folder, relative_path)
     if os.path.exists(save_file_path):
         return load_json_if_exists(save_file_path)
+    
+    os.makedirs(os.path.dirname(save_file_path), exist_ok=True)
 
     headers = {"Authorization": f"token {audit.gh_token}"}
 
@@ -128,7 +132,7 @@ def callGithubApi(audit, save_file_path, github_url, params=None, paginate=False
             all_data.extend(page_data)
             page += 1
 
-        saveJson(all_data, save_file_path)
+        save_json(all_data, save_file_path)
         return all_data
 
     else:
@@ -137,7 +141,7 @@ def callGithubApi(audit, save_file_path, github_url, params=None, paginate=False
             return None
         res.raise_for_status()
         json_data = res.json()
-        saveJson(json_data, save_file_path)
+        save_json(json_data, save_file_path)
         return json_data
 
 def parse_dt(dt_str):
