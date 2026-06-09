@@ -1,0 +1,82 @@
+[
+    {
+        "id": 4002489986,
+        "node_id": "PRR_kwDOJQM0ys7ukSaC",
+        "user": {
+            "login": "ajdehn-auditops",
+            "id": 270781775,
+            "node_id": "U_kgDOECPNTw",
+            "avatar_url": "https://avatars.githubusercontent.com/u/270781775?u=6d29a32cac0b449d8ca3afb4c6c4c4fb3c62a88d&v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/ajdehn-auditops",
+            "html_url": "https://github.com/ajdehn-auditops",
+            "followers_url": "https://api.github.com/users/ajdehn-auditops/followers",
+            "following_url": "https://api.github.com/users/ajdehn-auditops/following{/other_user}",
+            "gists_url": "https://api.github.com/users/ajdehn-auditops/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/ajdehn-auditops/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/ajdehn-auditops/subscriptions",
+            "organizations_url": "https://api.github.com/users/ajdehn-auditops/orgs",
+            "repos_url": "https://api.github.com/users/ajdehn-auditops/repos",
+            "events_url": "https://api.github.com/users/ajdehn-auditops/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/ajdehn-auditops/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+        },
+        "body": "Looks good to me!",
+        "state": "COMMENTED",
+        "html_url": "https://github.com/itauditguy-training/training/pull/2#pullrequestreview-4002489986",
+        "pull_request_url": "https://api.github.com/repos/itauditguy-training/training/pulls/2",
+        "author_association": "COLLABORATOR",
+        "_links": {
+            "html": {
+                "href": "https://github.com/itauditguy-training/training/pull/2#pullrequestreview-4002489986"
+            },
+            "pull_request": {
+                "href": "https://api.github.com/repos/itauditguy-training/training/pulls/2"
+            }
+        },
+        "submitted_at": "2026-03-24T21:45:36Z",
+        "commit_id": "84352fe37e6fd254dcacda2a1fcf78080fddd754"
+    },
+    {
+        "id": 4002496920,
+        "node_id": "PRR_kwDOJQM0ys7ukUGY",
+        "user": {
+            "login": "ajdehn-auditops",
+            "id": 270781775,
+            "node_id": "U_kgDOECPNTw",
+            "avatar_url": "https://avatars.githubusercontent.com/u/270781775?u=6d29a32cac0b449d8ca3afb4c6c4c4fb3c62a88d&v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/ajdehn-auditops",
+            "html_url": "https://github.com/ajdehn-auditops",
+            "followers_url": "https://api.github.com/users/ajdehn-auditops/followers",
+            "following_url": "https://api.github.com/users/ajdehn-auditops/following{/other_user}",
+            "gists_url": "https://api.github.com/users/ajdehn-auditops/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/ajdehn-auditops/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/ajdehn-auditops/subscriptions",
+            "organizations_url": "https://api.github.com/users/ajdehn-auditops/orgs",
+            "repos_url": "https://api.github.com/users/ajdehn-auditops/repos",
+            "events_url": "https://api.github.com/users/ajdehn-auditops/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/ajdehn-auditops/received_events",
+            "type": "User",
+            "user_view_type": "public",
+            "site_admin": false
+        },
+        "body": "",
+        "state": "APPROVED",
+        "html_url": "https://github.com/itauditguy-training/training/pull/2#pullrequestreview-4002496920",
+        "pull_request_url": "https://api.github.com/repos/itauditguy-training/training/pulls/2",
+        "author_association": "COLLABORATOR",
+        "_links": {
+            "html": {
+                "href": "https://github.com/itauditguy-training/training/pull/2#pullrequestreview-4002496920"
+            },
+            "pull_request": {
+                "href": "https://api.github.com/repos/itauditguy-training/training/pulls/2"
+            }
+        },
+        "submitted_at": "2026-03-24T21:47:25Z",
+        "commit_id": "84352fe37e6fd254dcacda2a1fcf78080fddd754"
+    }
+]
